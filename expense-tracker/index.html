@@ -1,0 +1,468 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinFlow — Minimalist Wealth & Expense Tracker</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#10b981',
+              600: '#059669',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="min-h-screen text-[#1d1d1f] dark:text-[#f5f5f7] bg-[#f5f5f7] dark:bg-[#09090b] transition-colors duration-200 antialiased selection:bg-emerald-500 selection:text-white pb-24">
+
+  <!-- Main Container -->
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7">
+    
+    <!-- Header with Brand, Segmented Tabs, and Actions -->
+    <header class="flex flex-col md:flex-row items-center justify-between gap-4 pb-2 border-b border-black/5 dark:border-white/5">
+      <!-- Logo -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-bold text-base shadow-sm">
+          ₹
+        </div>
+        <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">FinFlow</span>
+        <span id="storageStatusText" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+          Saved
+        </span>
+      </div>
+
+      <!-- Segmented Pill Navigation Tabs -->
+      <nav class="flex items-center p-1 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 text-xs font-semibold">
+        <button type="button" class="tab-btn segmented-btn active px-4 py-1.5 rounded-full" data-tab="overview">
+          Overview
+        </button>
+        <button type="button" class="tab-btn segmented-btn px-4 py-1.5 rounded-full" data-tab="analytics">
+          Analytics
+        </button>
+        <button type="button" class="tab-btn segmented-btn px-4 py-1.5 rounded-full" data-tab="budgets">
+          Budgets
+        </button>
+        <button type="button" class="tab-btn segmented-btn px-4 py-1.5 rounded-full" data-tab="activity">
+          Activity
+        </button>
+      </nav>
+
+      <!-- Action Cluster -->
+      <div class="flex items-center gap-2">
+        <button id="themeToggleBtn" type="button" aria-label="Toggle Theme" class="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
+          <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+          <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+        </button>
+        <button id="exportCsvBtn" type="button" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center gap-1.5">
+          <i data-lucide="download" class="w-3.5 h-3.5 text-slate-400"></i>
+          <span>CSV</span>
+        </button>
+        <button id="clearAllDataBtn" type="button" title="Start with clean slate for personal records" class="px-2.5 py-1.5 rounded-xl text-xs font-medium text-rose-500 hover:bg-rose-500/10 transition-colors">
+          Clear All
+        </button>
+        <button id="openAddModalBtn" type="button" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-sm active:scale-95 transition-all flex items-center gap-1.5">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          <span>Add</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Global Overspend Alert Banner -->
+    <div id="overspendAlertBanner" class="hidden apple-card rounded-2xl p-4 border-l-4 border-l-rose-500 flex items-center justify-between transition-all">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+          <i data-lucide="alert-circle" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold text-rose-600 dark:text-rose-400">Budget Limit Exceeded</h4>
+          <p id="overspendAlertText" class="text-[11px] text-slate-500 dark:text-slate-400"></p>
+        </div>
+      </div>
+      <button id="dismissAlertBtn" class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 py-1 font-medium">
+        Dismiss
+      </button>
+    </div>
+
+    <!-- VIEW 1: OVERVIEW (Default Clean Tab) -->
+    <main id="tab-overview" class="space-y-7 tab-content">
+      
+      <!-- Apple Wallet / Fi Money Style Balance Card -->
+      <section class="apple-card rounded-3xl p-7 sm:p-9 space-y-6">
+        <div class="space-y-2">
+          <span class="text-xs uppercase font-semibold text-slate-400 tracking-wider">Total Net Balance</span>
+          <div id="kpiTotalBalance" class="text-4xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
+            ₹0
+          </div>
+        </div>
+
+        <!-- Monthly Flow Pills -->
+        <div class="flex flex-wrap items-center gap-3 pt-2">
+          <div class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/15 text-xs font-medium">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="text-slate-500 dark:text-slate-400">Inflow:</span>
+            <strong id="kpiMonthlyIncome" class="text-emerald-600 dark:text-emerald-400 font-bold">₹0</strong>
+          </div>
+
+          <div class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-rose-500/10 border border-rose-500/15 text-xs font-medium">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span class="text-slate-500 dark:text-slate-400">Outflow:</span>
+            <strong id="kpiMonthlyExpense" class="text-rose-600 dark:text-rose-400 font-bold">₹0</strong>
+          </div>
+
+          <div class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 text-xs font-medium">
+            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+            <span class="text-slate-500 dark:text-slate-400">Savings:</span>
+            <strong id="kpiSavingsRate" class="text-indigo-600 dark:text-indigo-400 font-bold">0%</strong>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3 pt-3 border-t border-slate-100 dark:border-white/5">
+          <button id="quickAddExpenseBtn" type="button" class="px-5 py-2.5 rounded-full text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+            <span>Add Expense</span>
+          </button>
+          <button id="quickAddIncomeBtn" type="button" class="px-5 py-2.5 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 active:scale-95 transition-all flex items-center gap-1.5">
+            <i data-lucide="arrow-down-left" class="w-3.5 h-3.5 text-emerald-500"></i>
+            <span>Add Income</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Overview Quick Grid: Recent Activity + Category Budgets Preview -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Recent Transactions (7 Cols) -->
+        <div class="lg:col-span-7 apple-card rounded-3xl p-6 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/5">
+            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Recent Transactions</h3>
+            <button type="button" class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline switch-to-tab" data-target="activity">
+              View All &rarr;
+            </button>
+          </div>
+          
+          <div id="overviewRecentList" class="space-y-2 divide-y divide-black/5 dark:divide-white/5">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Right: Budget Status Snapshot (5 Cols) -->
+        <div class="lg:col-span-5 apple-card rounded-3xl p-6 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/5">
+            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Monthly Budgets</h3>
+            <button type="button" class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline switch-to-tab" data-target="budgets">
+              Manage &rarr;
+            </button>
+          </div>
+
+          <div id="overviewBudgetList" class="space-y-3.5">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- VIEW 2: ANALYTICS (Charts Tab) -->
+    <main id="tab-analytics" class="hidden space-y-6 tab-content">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white">Financial Analytics</h2>
+          <p class="text-xs text-slate-400">Visual breakdown of your income, expenses, and savings trajectory</p>
+        </div>
+        <select id="donutPeriodFilter" class="apple-select text-xs py-1.5 px-3 rounded-xl outline-none">
+          <option value="all" selected>All Time</option>
+          <option value="month">This Month</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 1. Donut Chart: Category Spending -->
+        <div class="apple-card rounded-3xl p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-200">Category Spending</h3>
+            <span id="donutCenterValue" class="text-xs font-bold text-slate-900 dark:text-white font-mono">₹0</span>
+          </div>
+          <div class="relative h-64 flex items-center justify-center">
+            <canvas id="donutChartCanvas"></canvas>
+          </div>
+          <div id="donutLegendContainer" class="grid grid-cols-2 gap-2 pt-2 border-t border-black/5 dark:border-white/5 text-xs max-h-32 overflow-y-auto">
+            <!-- Dynamic Mini Legends -->
+          </div>
+        </div>
+
+        <!-- 2. Bar Chart: Monthly Cashflow -->
+        <div class="apple-card rounded-3xl p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-200">Monthly Cashflow</h3>
+            <span class="text-[11px] text-slate-400 font-medium">Last 6 Months</span>
+          </div>
+          <div class="relative h-64">
+            <canvas id="barChartCanvas"></canvas>
+          </div>
+          <div class="flex items-center justify-center gap-6 text-xs font-semibold pt-2 border-t border-black/5 dark:border-white/5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span class="text-slate-600 dark:text-slate-300">Income</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+              <span class="text-slate-600 dark:text-slate-300">Expense</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Line Chart: 30-Day Trend (Full Width) -->
+      <div class="apple-card rounded-3xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-200">30-Day Net Balance Trajectory</h3>
+            <p class="text-[11px] text-slate-400">Cumulative balance progression over time</p>
+          </div>
+          <span class="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+            30 Days
+          </span>
+        </div>
+        <div class="relative h-64">
+          <canvas id="lineChartCanvas"></canvas>
+        </div>
+      </div>
+    </main>
+
+    <!-- VIEW 3: BUDGETS (Budget Management Tab) -->
+    <main id="tab-budgets" class="hidden space-y-6 tab-content">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white">Monthly Budgets</h2>
+          <p class="text-xs text-slate-400">Monitor your spending against monthly targets per category</p>
+        </div>
+        <button id="quickEditBudgetBtn" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm transition-all flex items-center gap-1.5">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+          <span>Adjust Budgets</span>
+        </button>
+      </div>
+
+      <!-- Full Budget Grid -->
+      <div id="budgetProgressGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Injected via app.js -->
+      </div>
+    </main>
+
+    <!-- VIEW 4: ACTIVITY (Full Transactions List & Filters) -->
+    <main id="tab-activity" class="hidden space-y-6 tab-content">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white">All Transactions</h2>
+          <p class="text-xs text-slate-400">Search, filter, and review complete transaction history</p>
+        </div>
+      </div>
+
+      <!-- Live Search & Filters Toolbar -->
+      <div class="apple-card rounded-2xl p-4 space-y-3">
+        <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input id="searchInput" type="text" placeholder="Search merchant, notes, or category..." class="apple-input pl-10 pr-4 py-2 rounded-xl text-xs w-full outline-none">
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="typeFilter" class="apple-select text-xs py-2 px-3 rounded-xl outline-none">
+              <option value="all">All Types</option>
+              <option value="expense">Expenses Only</option>
+              <option value="income">Income Only</option>
+            </select>
+
+            <select id="categoryFilter" class="apple-select text-xs py-2 px-3 rounded-xl outline-none">
+              <option value="all">All Categories</option>
+            </select>
+
+            <select id="dateFilter" class="apple-select text-xs py-2 px-3 rounded-xl outline-none">
+              <option value="all" selected>All Time</option>
+              <option value="today">Today</option>
+              <option value="this_week">This Week</option>
+              <option value="this_month">This Month</option>
+              <option value="last_30_days">Last 30 Days</option>
+            </select>
+
+            <select id="sortFilter" class="apple-select text-xs py-2 px-3 rounded-xl outline-none">
+              <option value="date_desc">Newest First</option>
+              <option value="date_asc">Oldest First</option>
+              <option value="amount_desc">Amount High to Low</option>
+              <option value="amount_asc">Amount Low to High</option>
+            </select>
+
+            <button id="resetFiltersBtn" type="button" class="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors" title="Clear filters">
+              <i data-lucide="filter-x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-black/5 dark:border-white/5">
+          <div>
+            Showing <span id="filteredTxnCount" class="font-bold text-slate-700 dark:text-slate-200">0</span> records
+          </div>
+          <div>
+            Net Flow: <strong id="filteredNetTotal" class="text-emerald-600 dark:text-emerald-400 font-bold">₹0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grouped Transactions Container -->
+      <div id="groupedTransactionsContainer" class="space-y-6">
+        <!-- Populated via renderTransactions() -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyTransactionsState" class="hidden apple-card rounded-3xl p-12 text-center space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+          <i data-lucide="inbox" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">No Transactions Found</h3>
+        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+          You have a clean slate. Click below to add your first transaction.
+        </p>
+        <button id="emptyStateAddBtn" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-all">
+          + Add First Transaction
+        </button>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- MODAL 1: Add / Edit Transaction Modal -->
+  <dialog id="transactionModal" class="apple-modal backdrop:bg-black/40 backdrop:backdrop-blur-sm p-0 rounded-3xl shadow-xl max-w-md w-full mx-auto my-auto overflow-hidden">
+    <div class="p-6 space-y-4 bg-white dark:bg-[#161618]">
+      <div class="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-3">
+        <h3 id="modalTitle" class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <span>Add Transaction</span>
+        </h3>
+        <button id="closeModalBtn" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="transactionForm" class="space-y-3.5">
+        <input type="hidden" id="txId">
+
+        <!-- Type Selector (Expense vs Income) -->
+        <div class="grid grid-cols-2 gap-1 p-1 bg-black/5 dark:bg-white/5 rounded-xl text-xs font-bold">
+          <button type="button" id="typeExpenseBtn" class="py-2 rounded-lg transition-all bg-white dark:bg-[#27272a] text-rose-500 shadow-sm">
+            Expense
+          </button>
+          <button type="button" id="typeIncomeBtn" class="py-2 rounded-lg transition-all text-slate-500 hover:text-emerald-500">
+            Income
+          </button>
+        </div>
+        <input type="hidden" id="txType" value="expense">
+
+        <!-- Amount (in INR ₹) -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Amount (₹) *</label>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-emerald-500">₹</span>
+            <input type="number" id="txAmount" required min="1" step="any" placeholder="0" class="apple-input pl-8 pr-3 py-2.5 rounded-xl text-lg font-bold w-full outline-none">
+          </div>
+          <p id="amountInWords" class="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium"></p>
+        </div>
+
+        <!-- Title -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Title / Description *</label>
+          <input type="text" id="txTitle" required placeholder="e.g. Swiggy, Salary, Grocery" class="apple-input px-3 py-2 rounded-xl text-xs w-full outline-none">
+        </div>
+
+        <!-- Category & Payment Method Grid -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Category *</label>
+            <select id="txCategory" required class="apple-select w-full py-2 px-2.5 rounded-xl text-xs outline-none">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Payment Method</label>
+            <select id="txPaymentMethod" class="apple-select w-full py-2 px-2.5 rounded-xl text-xs outline-none">
+              <option value="UPI">UPI</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="Net Banking">Net Banking</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Date and Time -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Date & Time *</label>
+          <input type="datetime-local" id="txDateTime" required class="apple-input px-3 py-2 rounded-xl text-xs w-full outline-none">
+        </div>
+
+        <!-- Notes -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Notes (Optional)</label>
+          <input type="text" id="txNotes" placeholder="Optional notes..." class="apple-input px-3 py-2 rounded-xl text-xs w-full outline-none">
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+          <button type="button" id="cancelModalBtn" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white">
+            Cancel
+          </button>
+          <button type="submit" id="saveTxBtn" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-all">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL 2: Budget Settings Modal -->
+  <dialog id="budgetModal" class="apple-modal backdrop:bg-black/40 backdrop:backdrop-blur-sm p-0 rounded-3xl shadow-xl max-w-md w-full mx-auto my-auto overflow-hidden">
+    <div class="p-6 space-y-4 bg-white dark:bg-[#161618]">
+      <div class="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-3">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">Monthly Budgets</h3>
+        <button id="closeBudgetModalBtn" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="budgetForm" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+        <div id="budgetInputsContainer" class="space-y-2">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-black/5 dark:border-white/5 sticky bottom-0 bg-white dark:bg-[#161618] py-1">
+          <button type="button" id="cancelBudgetBtn" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm">
+            Save Limits
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- App Script -->
+  <script src="js/app.js"></script>
+</body>
+</html>
